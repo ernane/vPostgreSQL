@@ -1,0 +1,110 @@
+- hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Importando keyserver PostgreSQL
+      apt_key: keyserver=hkp://p80.pool.sks-keyservers.net:80 id=B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+
+    - name: Adicionando Repositório PostgreSQL
+      lineinfile: dest=/etc/apt/sources.list.d/pgdg.list
+                  line="deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main" state=present
+                  create=yes
+
+- hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Atualização do Sistema
+      apt: update_cache=yes
+
+    - name: Instalação dos Pacotes Básicos
+      apt: name={{item}}
+      with_items:
+          - python-software-properties
+          - software-properties-common
+          - libpq-dev
+          - python-psycopg2
+          - postgresql-contrib
+          - postgresql-9.5
+          - phppgadmin
+
+- hosts: all
+  become: yes
+  become_user: postgres
+  gather_facts: no
+
+  handlers:
+    - name: restart postgresql
+      service: name=postgresql state=restarted
+
+  tasks:
+    - name: Configuração do listen_addresses
+      lineinfile: dest=/etc/postgresql/9.5/main/postgresql.conf
+                  regexp="^listen_addresses"
+                  line="listen_addresses = '*'" state=present
+
+    - name: Configuração de Acesso
+      copy:
+        dest: /etc/postgresql/9.5/main/pg_hba.conf
+        content: |
+          local   all   postgres   peer
+          local   all   all        peer
+          host    all   all        0.0.0.0/0   md5
+      notify: restart postgresql
+
+- hosts: all
+  become: yes
+  become_user: postgres
+  gather_facts: no
+
+  vars:
+    dbname: vagrant
+    dbuser: vagrant
+    dbpassword: vagrant
+
+  tasks:
+    - name: Criação de Base de Dados
+      postgresql_db: name={{dbname}}
+
+    - name: Concessão de Acesso a Base de Dados
+      postgresql_user: db={{dbname}} name={{dbuser}} password={{dbpassword}} priv=ALL
+
+- hosts: all
+  become: yes
+  gather_facts: no
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+
+  tasks:
+    - name: Configuração Apache2/phppgadmin - 1 Passo
+      lineinfile: dest=/etc/apache2/conf.d/phppgadmin
+                  regexp="^allow\sfrom\s127.0.0.0\/255.0.0.0\s::1\/128$"
+                  state=absent
+
+    - name: Configuração Apache2 - 2 Passo
+      lineinfile: dest=/etc/apache2/conf.d/phppgadmin
+                  regexp="^#?\sallow\sfrom\sall"
+                  line='allow from all'
+                  state=present
+                  backrefs=yes
+
+    - name: Configuração Apache2/phppgadmin - 3 Passo
+      lineinfile: dest=/etc/phppgadmin/config.inc.php
+                  regexp="^\?$conf\[\'extra_login_security\']"
+                  line="$conf['extra_login_security'] = false;"
+                  state=present
+                  backrefs=yes
+
+    - name: Configuração Apache2/phppgadmin - 4 Passo
+      lineinfile: dest=/etc/phppgadmin/config.inc.php
+                  regexp="^\?$conf\[\'owned_only\']"
+                  line="$conf['owned_only'] = true;"
+                  state=present
+                  backrefs=yes
+
+    - name: Configuração Apache2/phppgadmin - 5 Passo
+      lineinfile: dest=/etc/apache2/apache2.conf
+                  line="Include /etc/apache2/conf.d/phppgadmin" state=present
+      notify: restart apache2            
