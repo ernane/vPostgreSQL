@@ -83,7 +83,7 @@
                   regexp="^allow\sfrom\s127.0.0.0\/255.0.0.0\s::1\/128$"
                   state=absent
 
-    - name: Configuração Apache2 - 2 Passo
+    - name: Configuração Apache2/phppgadmin - 2 Passo
       lineinfile: dest=/etc/apache2/conf.d/phppgadmin
                   regexp="^#?\sallow\sfrom\sall"
                   line='allow from all'
