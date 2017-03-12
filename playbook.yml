@@ -25,7 +25,7 @@
           - libpq-dev
           - python-psycopg2
           - postgresql-contrib
-          - postgresql-9.5
+          - postgresql-9.6
           - phppgadmin
 
 - hosts: all
@@ -39,13 +39,13 @@
 
   tasks:
     - name: Configuração do listen_addresses
-      lineinfile: dest=/etc/postgresql/9.5/main/postgresql.conf
+      lineinfile: dest=/etc/postgresql/9.6/main/postgresql.conf
                   regexp="^listen_addresses"
                   line="listen_addresses = '*'" state=present
 
     - name: Configuração de Acesso
       copy:
-        dest: /etc/postgresql/9.5/main/pg_hba.conf
+        dest: /etc/postgresql/9.6/main/pg_hba.conf
         content: |
           local   all   postgres   peer
           local   all   all        peer
